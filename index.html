@@ -331,33 +331,90 @@
         }
 
         //P2P logic
-        let myPlayerId = 'P1'; // 默认当前是主机
-        let conn = null;
-
         const peer = new Peer();
+        let conn = null;
+        
+        let myPlayerId = 'P1';
+
+        const PEER_MATCH_URL = 'https://api.jsonbin.io/v3/b/686417478960c979a5b55d1f';
+        const API_KEY = '$2a$10$IXYxv8ftbOzJy2ayjR1ztuJV6m8g1nbFEzrlFi7KFDqjaelTN7pQG';
+        const ACCESS_KEY = '$2a$10$EYEU7ZThp4F/mZ8U9V79I.lETzNtAj3UBbRHvVrEY1nYFr0rubIba';
+
         peer.on('open', id => {
             document.getElementById('peer-id').innerText = id;
+            tryAutoConnect(id);
         });
 
         peer.on('connection', c => {
+            if (conn) return; // 避免重复连接
             conn = c;
-            myPlayerId = 'P1'; // 主机是P1
+            myPlayerId = 'P1';
             document.getElementById('conn-status').innerText = 'Connected as Host';
             setupConnEvents();
+            clearMatchSlot();
             showTurnBanner();
         });
 
-        function connectToPeer() {
-            const targetId = document.getElementById('peer-connect').value;
-            conn = peer.connect(targetId);
-            myPlayerId = 'P2'; // 客户端是P2
-            document.getElementById('conn-status').innerText = 'Connecting...';
+        async function tryAutoConnect(myId) {
+            const res = await fetch(PEER_MATCH_URL, {
+                method: 'GET',
+                headers: {
+                    'X-Master-Key': API_KEY,
+                    'X-Access-Key': ACCESS_KEY
+                }
+            });
 
-            conn.on('open', () => {
-                document.getElementById('conn-status').innerText = 'Connected as Client';
-                setupConnEvents();
+            const data = await res.json();
+            const waitingId = data.record?.waiting;
+
+            console.log(waitingId);
+
+            if (!waitingId || waitingId === myId) {
+                console.log(myId, waitingId);
+                // Become the waiting player
+                await fetch(PEER_MATCH_URL, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': API_KEY,
+                        'X-Access-Key': ACCESS_KEY
+                    },
+                    body: JSON.stringify({ waiting: myId })
+                });
+
+                console.log("Waiting for opponent...");
+                // Now just wait for someone to connect via peer.on('connection')
+            } else {
+                // Connect to waiting player
+                conn = peer.connect(waitingId);
+                myPlayerId = 'P2';
+                document.getElementById('conn-status').innerText = 'Connecting...';
+
+                conn.on('open', () => {
+                    document.getElementById('conn-status').innerText = 'Connected as Client';
+                    setupConnEvents();
+                    clearMatchSlot();
+                    showTurnBanner();
+                });
+
+                conn.on('error', err => {
+                    console.error('Connection error:', err);
+                });
+            }
+        }
+
+        async function clearMatchSlot() {
+            await fetch(PEER_MATCH_URL, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': API_KEY,
+                    'X-Access-Key': ACCESS_KEY
+                },
+                body: JSON.stringify({ waiting: null })
             });
         }
+
 
         function setupConnEvents() {
             conn.on('data', msg => {
