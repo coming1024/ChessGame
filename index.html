@@ -6,8 +6,8 @@
     <title>Pixi Tactics Prototype</title>
     <div style="position:fixed;bottom:10px;left:10px;z-index:999;color:white">
         <div>Your Peer ID: <span id="peer-id">Loading...</span></div>
-        <input id="peer-connect" placeholder="Other Peer ID" />
-        <button onclick="connectToPeer()">Connect</button>
+        <!-- <input id="peer-connect" placeholder="Other Peer ID" /> -->
+        <!-- <button onclick="connectToPeer()">Connect</button> -->
         <div id="conn-status">Not connected</div>
     </div>
     <style>
@@ -333,7 +333,7 @@
         //P2P logic
         const peer = new Peer();
         let conn = null;
-        
+
         let myPlayerId = 'P1';
 
         const PEER_MATCH_URL = 'https://api.jsonbin.io/v3/b/686417478960c979a5b55d1f';
@@ -352,7 +352,14 @@
             document.getElementById('conn-status').innerText = 'Connected as Host';
             setupConnEvents();
             clearMatchSlot();
-            showTurnBanner();
+            // showTurnBanner();
+            if (myPlayerId === 'P1') {
+                currentTurn = 'P1';
+                showTurnBanner();
+                if (conn && conn.open) {
+                    conn.send({ type: 'turnStart', turn: 'P1' });
+                }
+            }
         });
 
         async function tryAutoConnect(myId) {
@@ -394,7 +401,7 @@
                     document.getElementById('conn-status').innerText = 'Connected as Client';
                     setupConnEvents();
                     clearMatchSlot();
-                    showTurnBanner();
+                    // showTurnBanner();
                 });
 
                 conn.on('error', err => {
@@ -456,6 +463,11 @@
                     }
                     currentTurn = 'GameOver';
                     clearHighlights();
+                } else if (msg.type === 'turnStart') {
+                    currentTurn = msg.turn;
+                    if (currentTurn === myPlayerId) {
+                        showTurnBanner();
+                    }
                 }
             });
         }
