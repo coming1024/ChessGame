@@ -444,8 +444,10 @@
 
                         //sync transparent
                         const terrain = mapSymbols[msg.row][msg.col];
-                        if (terrain === 'F' || terrain === 'T' || terrain === 'M') {
+                        if (terrain === 'T' || terrain === 'M') {
                             movedUnit.sprite.alpha = 0.5;
+                        } else if (terrain === 'F') {
+                            movedUnit.sprite.alpha = 0;
                         } else {
                             movedUnit.sprite.alpha = 1;
                         }
